@@ -97,9 +97,81 @@ Use `-OperatingSystem Windows` when a subscription doesn't have Linux App Servic
    - minimum lifetime: 10 minutes;
    - one-time use allowed.
 2. Enable Passkey (FIDO2) self-service setup for the intended users.
-3. Configure the Conditional Access and Terms of Use policies for the onboarding and completion groups.
-4. Add only approved, nonprivileged users to the onboarding group.
-5. Test with a dedicated nonprivileged account before broader rollout.
+3. Expose the My Sign-ins first-party application in the tenant, as described below.
+4. Configure the Conditional Access and Terms of Use policies for the onboarding and completion groups.
+5. Add the deployed portal and My Sign-ins as exclusions only in the onboarding-specific Conditional Access policy.
+6. Add only approved, nonprivileged users to the onboarding group.
+7. Test with a dedicated nonprivileged account before broader rollout.
+
+### Expose My Sign-ins in Conditional Access
+
+Conditional Access can target a Microsoft first-party cloud application only after its service principal exists in the tenant. The My Sign-ins application uses this Microsoft-owned application ID:
+
+```text
+19db86c3-b2b9-44cc-b339-36da233a3be2
+```
+
+Use **Azure Cloud Shell in PowerShell mode**:
+
+1. Open [Azure Cloud Shell](https://shell.azure.com) and select **PowerShell**.
+2. Run the following idempotent script:
+
+```powershell
+$mySignInsAppId = "19db86c3-b2b9-44cc-b339-36da233a3be2"
+
+if (-not (Get-Module Microsoft.Graph.Applications -ListAvailable)) {
+    Install-Module Microsoft.Graph.Applications -Scope CurrentUser -Force
+}
+
+Import-Module Microsoft.Graph.Applications
+Connect-MgGraph -Scopes "Application.ReadWrite.All" -NoWelcome
+
+$servicePrincipal = Get-MgServicePrincipal `
+    -Filter "appId eq '$mySignInsAppId'" `
+    -Property "id,appId,displayName"
+
+if (-not $servicePrincipal) {
+    $servicePrincipal = New-MgServicePrincipal -AppId $mySignInsAppId
+    Write-Host "Created My Sign-ins service principal."
+}
+else {
+    Write-Host "My Sign-ins service principal already exists."
+}
+
+$servicePrincipal |
+    Select-Object DisplayName, Id, AppId |
+    Format-Table
+
+Disconnect-MgGraph
+```
+
+Expected application ID:
+
+```text
+19db86c3-b2b9-44cc-b339-36da233a3be2
+```
+
+The administrator running the script must be allowed to create enterprise applications and consent to the delegated `Application.ReadWrite.All` permission requested by Microsoft Graph PowerShell.
+
+After the service principal exists:
+
+1. Open **Microsoft Entra admin center**.
+2. Browse to **Protection → Conditional Access → Policies**.
+3. Open the policy used for the Passkey onboarding group.
+4. Under **Target resources → Resources**, select **Exclude → Select resources**.
+5. Add:
+   - the deployed Passkey onboarding portal;
+   - **My Signins**.
+6. Start with **Report-only**, validate the sign-in logs, and then enable the policy.
+
+> [!CAUTION]
+> Prefer an onboarding-specific Conditional Access policy scoped to the onboarding group. Don't exclude My Sign-ins from a broad all-users policy unless the wider bypass has been explicitly reviewed and accepted. Other My Sign-ins features can depend on additional Microsoft first-party applications; use sign-in logs to identify only the resources required by your scenario rather than creating broad Microsoft application exclusions.
+
+References:
+
+- [Microsoft Graph PowerShell: New-MgServicePrincipal](https://learn.microsoft.com/powershell/module/microsoft.graph.applications/new-mgserviceprincipal)
+- [Microsoft Entra Conditional Access target resources](https://learn.microsoft.com/entra/identity/conditional-access/concept-conditional-access-cloud-apps)
+- [Background: My Sign-ins portal applications](https://office365itpros.com/2025/10/15/my-sign-ins-portal/)
 
 ## Security model
 
