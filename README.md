@@ -2,7 +2,7 @@
 
 Reference application that helps an eligible Microsoft Entra ID user request a short-lived, single-use Temporary Access Pass (TAP), register a Passkey, and complete onboarding.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fbrunofreitas-br%2Fentra-passkey-onboarding-tap%2Faaa6f7bff204b9d4f69b594195d1036aa4f814f3%2Fazuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fbrunofreitas-br%2Fentra-passkey-onboarding-tap%2F60761f3efbae8249d817c1f7ea9d1bdb9abd5ba1%2Fazuredeploy.json)
 
 The default deployment target is **Azure App Service on Linux**. The deployment script creates the Azure resources, Microsoft Entra application, security groups when needed, managed identity permissions, and publishes the .NET application without Docker or client secrets.
 
