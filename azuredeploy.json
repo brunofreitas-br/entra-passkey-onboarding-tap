@@ -1,0 +1,1129 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "12802868552041201591"
+    }
+  },
+  "parameters": {
+    "namePrefix": {
+      "type": "string",
+      "defaultValue": "passkey-onboarding",
+      "minLength": 3,
+      "maxLength": 24
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "dev"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus2"
+    },
+    "appServiceSku": {
+      "type": "string",
+      "defaultValue": "B1"
+    },
+    "operatingSystem": {
+      "type": "string",
+      "defaultValue": "Linux",
+      "allowedValues": [
+        "Linux",
+        "Windows"
+      ]
+    },
+    "tenantId": {
+      "type": "string"
+    },
+    "webPackageUrl": {
+      "type": "string",
+      "defaultValue": "https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.0.0/web.zip"
+    },
+    "workerPackageUrl": {
+      "type": "string",
+      "defaultValue": "https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.0.0/worker.zip"
+    },
+    "onboardingGroupId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Use an existing Assigned security group, or leave empty to create one."
+      }
+    },
+    "completionGroupId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Use an existing Assigned completion group, or leave empty to create one."
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "[format('rg-{0}-{1}', parameters('namePrefix'), parameters('environmentName'))]"
+    }
+  },
+  "variables": {
+    "suffix": "[uniqueString(subscription().id, parameters('namePrefix'), parameters('environmentName'))]",
+    "safePrefix": "[toLower(replace(parameters('namePrefix'), '_', '-'))]",
+    "webAppName": "[take(format('{0}-{1}-{2}', variables('safePrefix'), parameters('environmentName'), variables('suffix')), 60)]",
+    "planName": "[format('asp-{0}-{1}', variables('safePrefix'), parameters('environmentName'))]",
+    "workspaceName": "[format('log-{0}-{1}-{2}', variables('safePrefix'), parameters('environmentName'), variables('suffix'))]",
+    "appInsightsName": "[format('appi-{0}-{1}-{2}', variables('safePrefix'), parameters('environmentName'), variables('suffix'))]",
+    "functionPlanName": "[format('asp-func-{0}-{1}', variables('safePrefix'), parameters('environmentName'))]",
+    "functionAppName": "[take(format('func-{0}-{1}-{2}', variables('safePrefix'), parameters('environmentName'), variables('suffix')), 60)]",
+    "storageAccountName": "[take(format('st{0}{1}{2}', replace(variables('safePrefix'), '-', ''), parameters('environmentName'), variables('suffix')), 24)]",
+    "queueName": "completion-transitions",
+    "redirectUri": "[format('https://{0}.azurewebsites.net/signin-oidc', variables('webAppName'))]",
+    "graphApplicationId": "00000003-0000-0000-c000-000000000000",
+    "graphOpenIdScopeId": "37f7f235-527c-4136-accd-4a02d197296e",
+    "graphProfileScopeId": "14dad69e-099b-42c9-810b-d002981feec1",
+    "graphUserAuthMethodPasskeyReadAllRoleId": "72e00c1d-3e3d-43bb-a0b9-c435611bb1d2",
+    "graphUserAuthMethodTapReadWriteAllRoleId": "627169a8-8c15-451c-861a-5b80e383de5c",
+    "graphGroupMemberReadWriteAllRoleId": "dbaae8cf-10b5-4b86-a4a1-f871c94c6695",
+    "graphGroupMemberReadAllRoleId": "98830695-27a2-44f7-8c18-0c3ebc9698f6",
+    "graphUserReadAllRoleId": "df021288-bdef-4463-88db-98f22de89214",
+    "graphRoleManagementReadDirectoryRoleId": "483bed4a-2ad3-4361-a73b-c83ccdbdc53c",
+    "graphPrivilegedGroupEligibilityReadRoleId": "edb419d6-7edc-42a3-9345-509bfdf5d87c",
+    "tags": {
+      "application": "entra-passkey-onboarding-tap",
+      "environment": "[parameters('environmentName')]",
+      "deployed-with": "bicep"
+    }
+  },
+  "imports": {
+    "microsoftGraphV1": {
+      "provider": "MicrosoftGraph",
+      "version": "1.0.0"
+    }
+  },
+  "resources": {
+    "rg": {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2023-07-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]"
+    },
+    "createdOnboardingGroup": {
+      "condition": "[empty(parameters('onboardingGroupId'))]",
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/groups@v1.0",
+      "properties": {
+        "uniqueName": "[format('{0}-{1}-{2}-onboarding', variables('safePrefix'), parameters('environmentName'), variables('suffix'))]",
+        "displayName": "[format('{0}-{1}-onboarding', parameters('namePrefix'), parameters('environmentName'))]",
+        "description": "Users authorized to request a Temporary Access Pass for Passkey onboarding.",
+        "mailEnabled": false,
+        "mailNickname": "[format('{0}{1}onboard', take(replace(variables('safePrefix'), '-', ''), 20), parameters('environmentName'))]",
+        "securityEnabled": true
+      }
+    },
+    "createdCompletionGroup": {
+      "condition": "[empty(parameters('completionGroupId'))]",
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/groups@v1.0",
+      "properties": {
+        "uniqueName": "[format('{0}-{1}-{2}-completed', variables('safePrefix'), parameters('environmentName'), variables('suffix'))]",
+        "displayName": "[format('{0}-{1}-completed', parameters('namePrefix'), parameters('environmentName'))]",
+        "description": "Users who completed Passkey registration.",
+        "mailEnabled": false,
+        "mailNickname": "[format('{0}{1}complete', take(replace(variables('safePrefix'), '-', ''), 20), parameters('environmentName'))]",
+        "securityEnabled": true
+      }
+    },
+    "portalApplication": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/applications@v1.0",
+      "properties": {
+        "uniqueName": "[format('{0}-{1}-{2}', variables('safePrefix'), parameters('environmentName'), variables('suffix'))]",
+        "displayName": "[format('{0} ({1})', parameters('namePrefix'), parameters('environmentName'))]",
+        "description": "Single-tenant sign-in identity for Passkey onboarding.",
+        "signInAudience": "AzureADMyOrg",
+        "isFallbackPublicClient": false,
+        "optionalClaims": {
+          "idToken": [
+            {
+              "name": "amr",
+              "essential": true
+            }
+          ]
+        },
+        "requiredResourceAccess": [
+          {
+            "resourceAppId": "[variables('graphApplicationId')]",
+            "resourceAccess": [
+              {
+                "id": "[variables('graphOpenIdScopeId')]",
+                "type": "Scope"
+              },
+              {
+                "id": "[variables('graphProfileScopeId')]",
+                "type": "Scope"
+              }
+            ]
+          }
+        ],
+        "web": {
+          "redirectUris": [
+            "[variables('redirectUri')]"
+          ],
+          "implicitGrantSettings": {
+            "enableAccessTokenIssuance": false,
+            "enableIdTokenIssuance": true
+          }
+        },
+        "tags": [
+          "entra-passkey-onboarding-tap"
+        ]
+      }
+    },
+    "portalServicePrincipal": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/servicePrincipals@v1.0",
+      "properties": {
+        "appId": "[reference('portalApplication').appId]",
+        "appRoleAssignmentRequired": false,
+        "tags": [
+          "entra-passkey-onboarding-tap"
+        ]
+      },
+      "dependsOn": [
+        "portalApplication"
+      ]
+    },
+    "microsoftGraph": {
+      "existing": true,
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/servicePrincipals@v1.0",
+      "properties": {
+        "appId": "[variables('graphApplicationId')]"
+      }
+    },
+    "portalConsent": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/oauth2PermissionGrants@v1.0",
+      "properties": {
+        "clientId": "[reference('portalServicePrincipal').id]",
+        "consentType": "AllPrincipals",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "scope": "openid profile"
+      },
+      "dependsOn": [
+        "microsoftGraph",
+        "portalServicePrincipal"
+      ]
+    },
+    "passkeyRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphUserAuthMethodPasskeyReadAllRoleId')]",
+        "principalId": "[reference('appService').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "appService",
+        "microsoftGraph"
+      ]
+    },
+    "tapReadWrite": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphUserAuthMethodTapReadWriteAllRoleId')]",
+        "principalId": "[reference('appService').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "appService",
+        "microsoftGraph",
+        "passkeyRead"
+      ]
+    },
+    "groupMemberRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphGroupMemberReadAllRoleId')]",
+        "principalId": "[reference('appService').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "appService",
+        "microsoftGraph",
+        "tapReadWrite"
+      ]
+    },
+    "userRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphUserReadAllRoleId')]",
+        "principalId": "[reference('appService').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "appService",
+        "groupMemberRead",
+        "microsoftGraph"
+      ]
+    },
+    "roleManagementRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphRoleManagementReadDirectoryRoleId')]",
+        "principalId": "[reference('appService').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "appService",
+        "microsoftGraph",
+        "userRead"
+      ]
+    },
+    "privilegedGroupEligibilityRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphPrivilegedGroupEligibilityReadRoleId')]",
+        "principalId": "[reference('appService').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "appService",
+        "microsoftGraph",
+        "roleManagementRead"
+      ]
+    },
+    "workerPasskeyRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphUserAuthMethodPasskeyReadAllRoleId')]",
+        "principalId": "[reference('transitionWorker').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "microsoftGraph",
+        "transitionWorker"
+      ]
+    },
+    "workerGroupMemberReadWrite": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphGroupMemberReadWriteAllRoleId')]",
+        "principalId": "[reference('transitionWorker').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "microsoftGraph",
+        "transitionWorker",
+        "workerPasskeyRead"
+      ]
+    },
+    "workerUserRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphUserReadAllRoleId')]",
+        "principalId": "[reference('transitionWorker').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "microsoftGraph",
+        "transitionWorker",
+        "workerGroupMemberReadWrite"
+      ]
+    },
+    "workerRoleManagementRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphRoleManagementReadDirectoryRoleId')]",
+        "principalId": "[reference('transitionWorker').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "microsoftGraph",
+        "transitionWorker",
+        "workerUserRead"
+      ]
+    },
+    "workerPrivilegedGroupEligibilityRead": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/appRoleAssignedTo@v1.0",
+      "properties": {
+        "appRoleId": "[variables('graphPrivilegedGroupEligibilityReadRoleId')]",
+        "principalId": "[reference('transitionWorker').outputs.principalId.value]",
+        "resourceId": "[reference('microsoftGraph').id]",
+        "resourceDisplayName": "Microsoft Graph"
+      },
+      "dependsOn": [
+        "microsoftGraph",
+        "transitionWorker",
+        "workerRoleManagementRead"
+      ]
+    },
+    "observability": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "observability",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "workspaceName": {
+            "value": "[variables('workspaceName')]"
+          },
+          "appInsightsName": {
+            "value": "[variables('appInsightsName')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "1602235332427369227"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "workspaceName": {
+              "type": "string"
+            },
+            "appInsightsName": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[parameters('workspaceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30,
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[parameters('appInsightsName')]",
+              "location": "[parameters('location')]",
+              "kind": "web",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+                "IngestionMode": "LogAnalytics",
+                "DisableLocalAuth": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "connectionString": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('appInsightsName')), '2020-02-02').ConnectionString]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "rg"
+      ]
+    },
+    "transitionWorker": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "transitionWorker",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "functionPlanName": {
+            "value": "[variables('functionPlanName')]"
+          },
+          "functionAppName": {
+            "value": "[variables('functionAppName')]"
+          },
+          "storageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "queueName": {
+            "value": "[variables('queueName')]"
+          },
+          "onboardingGroupId": "[if(empty(parameters('onboardingGroupId')), createObject('value', reference('createdOnboardingGroup').id), createObject('value', parameters('onboardingGroupId')))]",
+          "completionGroupId": "[if(empty(parameters('completionGroupId')), createObject('value', reference('createdCompletionGroup').id), createObject('value', parameters('completionGroupId')))]",
+          "appInsightsConnectionString": {
+            "value": "[reference('observability').outputs.connectionString.value]"
+          },
+          "packageUrl": {
+            "value": "[parameters('workerPackageUrl')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "6643119232429953459"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "functionPlanName": {
+              "type": "string"
+            },
+            "functionAppName": {
+              "type": "string"
+            },
+            "storageAccountName": {
+              "type": "string"
+            },
+            "queueName": {
+              "type": "string"
+            },
+            "onboardingGroupId": {
+              "type": "string"
+            },
+            "completionGroupId": {
+              "type": "string"
+            },
+            "appInsightsConnectionString": {
+              "type": "string"
+            },
+            "packageUrl": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "variables": {
+            "storageQueueContributorRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')]",
+            "storageBlobDataOwnerRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]",
+            "storageTableContributorRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[parameters('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "kind": "StorageV2",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {
+                "allowBlobPublicAccess": false,
+                "allowSharedKeyAccess": false,
+                "defaultToOAuthAuthentication": true,
+                "minimumTlsVersion": "TLS1_2",
+                "publicNetworkAccess": "Enabled",
+                "supportsHttpsTrafficOnly": true
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/queueServices",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', parameters('storageAccountName'), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', parameters('storageAccountName'), 'default', parameters('queueName'))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', parameters('storageAccountName'), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-11-01",
+              "name": "[parameters('functionPlanName')]",
+              "location": "[parameters('location')]",
+              "kind": "functionapp",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Y1",
+                "tier": "Dynamic"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-11-01",
+              "name": "[parameters('functionAppName')]",
+              "location": "[parameters('location')]",
+              "kind": "functionapp",
+              "tags": "[parameters('tags')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": false,
+                "siteConfig": {
+                  "ftpsState": "Disabled",
+                  "minTlsVersion": "1.2",
+                  "scmMinTlsVersion": "1.2",
+                  "netFrameworkVersion": "v8.0",
+                  "appSettings": [
+                    {
+                      "name": "FUNCTIONS_EXTENSION_VERSION",
+                      "value": "~4"
+                    },
+                    {
+                      "name": "FUNCTIONS_WORKER_RUNTIME",
+                      "value": "dotnet-isolated"
+                    },
+                    {
+                      "name": "FUNCTIONS_WORKER_RUNTIME_VERSION",
+                      "value": "8.0"
+                    },
+                    {
+                      "name": "AzureWebJobsFeatureFlags",
+                      "value": "EnableWorkerIndexing"
+                    },
+                    {
+                      "name": "AzureWebJobsStorage__accountName",
+                      "value": "[parameters('storageAccountName')]"
+                    },
+                    {
+                      "name": "AzureWebJobsStorage__credential",
+                      "value": "managedidentity"
+                    },
+                    {
+                      "name": "CompletionQueueConnection__queueServiceUri",
+                      "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-05-01').primaryEndpoints.queue]"
+                    },
+                    {
+                      "name": "CompletionQueueConnection__credential",
+                      "value": "managedidentity"
+                    },
+                    {
+                      "name": "CompletionQueueName",
+                      "value": "[parameters('queueName')]"
+                    },
+                    {
+                      "name": "Graph__BaseUrl",
+                      "value": "https://graph.microsoft.com/"
+                    },
+                    {
+                      "name": "Graph__OnboardingGroupId",
+                      "value": "[parameters('onboardingGroupId')]"
+                    },
+                    {
+                      "name": "Graph__CompletionGroupId",
+                      "value": "[parameters('completionGroupId')]"
+                    },
+                    {
+                      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                      "value": "[parameters('appInsightsConnectionString')]"
+                    },
+                    {
+                      "name": "WEBSITE_RUN_FROM_PACKAGE",
+                      "value": "[if(empty(parameters('packageUrl')), '1', parameters('packageUrl'))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('functionPlanName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/queueServices/queues', parameters('storageAccountName'), 'default', parameters('queueName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), resourceId('Microsoft.Web/sites', parameters('functionAppName')), variables('storageQueueContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('storageQueueContributorRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), resourceId('Microsoft.Web/sites', parameters('functionAppName')), variables('storageBlobDataOwnerRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('storageBlobDataOwnerRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), resourceId('Microsoft.Web/sites', parameters('functionAppName')), variables('storageTableContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('storageTableContributorRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "functionAppName": {
+              "type": "string",
+              "value": "[parameters('functionAppName')]"
+            },
+            "principalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2024-11-01', 'full').identity.principalId]"
+            },
+            "queueUri": {
+              "type": "string",
+              "value": "[format('{0}{1}', reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-05-01').primaryEndpoints.queue, parameters('queueName'))]"
+            },
+            "storageId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[parameters('storageAccountName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "createdCompletionGroup",
+        "createdOnboardingGroup",
+        "observability",
+        "rg"
+      ]
+    },
+    "appService": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "appService",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "planName": {
+            "value": "[variables('planName')]"
+          },
+          "webAppName": {
+            "value": "[variables('webAppName')]"
+          },
+          "skuName": {
+            "value": "[parameters('appServiceSku')]"
+          },
+          "operatingSystem": {
+            "value": "[parameters('operatingSystem')]"
+          },
+          "tenantId": {
+            "value": "[parameters('tenantId')]"
+          },
+          "clientId": {
+            "value": "[reference('portalApplication').appId]"
+          },
+          "onboardingGroupId": "[if(empty(parameters('onboardingGroupId')), createObject('value', reference('createdOnboardingGroup').id), createObject('value', parameters('onboardingGroupId')))]",
+          "completionGroupId": "[if(empty(parameters('completionGroupId')), createObject('value', reference('createdCompletionGroup').id), createObject('value', parameters('completionGroupId')))]",
+          "completionQueueUri": {
+            "value": "[reference('transitionWorker').outputs.queueUri.value]"
+          },
+          "appInsightsConnectionString": {
+            "value": "[reference('observability').outputs.connectionString.value]"
+          },
+          "packageUrl": {
+            "value": "[parameters('webPackageUrl')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "3157747417672274094"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "planName": {
+              "type": "string"
+            },
+            "webAppName": {
+              "type": "string"
+            },
+            "skuName": {
+              "type": "string"
+            },
+            "operatingSystem": {
+              "type": "string",
+              "allowedValues": [
+                "Linux",
+                "Windows"
+              ]
+            },
+            "tenantId": {
+              "type": "string"
+            },
+            "clientId": {
+              "type": "string"
+            },
+            "onboardingGroupId": {
+              "type": "string"
+            },
+            "completionGroupId": {
+              "type": "string"
+            },
+            "completionQueueUri": {
+              "type": "string"
+            },
+            "appInsightsConnectionString": {
+              "type": "string"
+            },
+            "packageUrl": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "variables": {
+            "commonSiteConfig": {
+              "alwaysOn": "[not(contains(createArray('F1', 'D1'), parameters('skuName')))]",
+              "ftpsState": "Disabled",
+              "minTlsVersion": "1.2",
+              "scmMinTlsVersion": "1.2",
+              "http20Enabled": true,
+              "healthCheckPath": "/health/ready",
+              "appSettings": [
+                {
+                  "name": "ASPNETCORE_ENVIRONMENT",
+                  "value": "Production"
+                },
+                {
+                  "name": "AzureAd__TenantId",
+                  "value": "[parameters('tenantId')]"
+                },
+                {
+                  "name": "AzureAd__ClientId",
+                  "value": "[parameters('clientId')]"
+                },
+                {
+                  "name": "AzureAd__CallbackPath",
+                  "value": "/signin-oidc"
+                },
+                {
+                  "name": "Graph__BaseUrl",
+                  "value": "https://graph.microsoft.com/"
+                },
+                {
+                  "name": "Graph__OnboardingGroupId",
+                  "value": "[parameters('onboardingGroupId')]"
+                },
+                {
+                  "name": "Graph__CompletionGroupId",
+                  "value": "[parameters('completionGroupId')]"
+                },
+                {
+                  "name": "Graph__ManagedIdentityClientId",
+                  "value": ""
+                },
+                {
+                  "name": "Graph__UseMock",
+                  "value": "false"
+                },
+                {
+                  "name": "Tap__LifetimeMinutes",
+                  "value": "10"
+                },
+                {
+                  "name": "CompletionQueue__Uri",
+                  "value": "[parameters('completionQueueUri')]"
+                },
+                {
+                  "name": "Reconciliation__Enabled",
+                  "value": "true"
+                },
+                {
+                  "name": "Reconciliation__Interval",
+                  "value": "00:10:00"
+                },
+                {
+                  "name": "Reconciliation__MaxConcurrency",
+                  "value": "4"
+                },
+                {
+                  "name": "AllowedHosts",
+                  "value": "*"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[parameters('appInsightsConnectionString')]"
+                },
+                {
+                  "name": "WEBSITE_RUN_FROM_PACKAGE",
+                  "value": "[if(empty(parameters('packageUrl')), '1', parameters('packageUrl'))]"
+                }
+              ]
+            },
+            "runtimeSiteConfig": "[if(equals(parameters('operatingSystem'), 'Linux'), createObject('linuxFxVersion', 'DOTNETCORE|10.0'), createObject('netFrameworkVersion', 'v10.0'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-11-01",
+              "name": "[parameters('planName')]",
+              "location": "[parameters('location')]",
+              "kind": "[if(equals(parameters('operatingSystem'), 'Linux'), 'linux', 'app')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "capacity": 1
+              },
+              "properties": {
+                "reserved": "[equals(parameters('operatingSystem'), 'Linux')]",
+                "perSiteScaling": false,
+                "zoneRedundant": false
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-11-01",
+              "name": "[parameters('webAppName')]",
+              "location": "[parameters('location')]",
+              "kind": "[if(equals(parameters('operatingSystem'), 'Linux'), 'app,linux', 'app')]",
+              "tags": "[parameters('tags')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('planName'))]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": false,
+                "publicNetworkAccess": "Enabled",
+                "siteConfig": "[union(variables('commonSiteConfig'), variables('runtimeSiteConfig'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('planName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "webAppName": {
+              "type": "string",
+              "value": "[parameters('webAppName')]"
+            },
+            "defaultHostName": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('webAppName')), '2024-11-01').defaultHostName]"
+            },
+            "principalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('webAppName')), '2024-11-01', 'full').identity.principalId]"
+            },
+            "url": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', parameters('webAppName')), '2024-11-01').defaultHostName)]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "createdCompletionGroup",
+        "createdOnboardingGroup",
+        "observability",
+        "portalApplication",
+        "rg",
+        "transitionWorker"
+      ]
+    },
+    "webQueueSender": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "webQueueSender",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "storageAccountName": {
+            "value": "[reference('transitionWorker').outputs.storageAccountName.value]"
+          },
+          "webAppName": {
+            "value": "[reference('appService').outputs.webAppName.value]"
+          },
+          "webPrincipalId": {
+            "value": "[reference('appService').outputs.principalId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "1136657148031625145"
+            }
+          },
+          "parameters": {
+            "storageAccountName": {
+              "type": "string"
+            },
+            "webAppName": {
+              "type": "string"
+            },
+            "webPrincipalId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "storageQueueSenderRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'c6a89b2d-59bc-44d0-9896-0f6e12d7b80a')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('webAppName'), variables('storageQueueSenderRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('storageQueueSenderRoleId')]",
+                "principalId": "[parameters('webPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "appService",
+        "rg",
+        "transitionWorker"
+      ]
+    }
+  },
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[parameters('resourceGroupName')]"
+    },
+    "webAppName": {
+      "type": "string",
+      "value": "[reference('appService').outputs.webAppName.value]"
+    },
+    "webUrl": {
+      "type": "string",
+      "value": "[reference('appService').outputs.url.value]"
+    },
+    "portalApplicationClientId": {
+      "type": "string",
+      "value": "[reference('portalApplication').appId]"
+    },
+    "onboardingGroupId": {
+      "type": "string",
+      "value": "[if(empty(parameters('onboardingGroupId')), reference('createdOnboardingGroup').id, parameters('onboardingGroupId'))]"
+    },
+    "completionGroupId": {
+      "type": "string",
+      "value": "[if(empty(parameters('completionGroupId')), reference('createdCompletionGroup').id, parameters('completionGroupId'))]"
+    },
+    "managedIdentityPrincipalId": {
+      "type": "string",
+      "value": "[reference('appService').outputs.principalId.value]"
+    },
+    "transitionFunctionName": {
+      "type": "string",
+      "value": "[reference('transitionWorker').outputs.functionAppName.value]"
+    },
+    "transitionIdentityPrincipalId": {
+      "type": "string",
+      "value": "[reference('transitionWorker').outputs.principalId.value]"
+    }
+  }
+}

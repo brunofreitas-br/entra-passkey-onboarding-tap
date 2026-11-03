@@ -6,6 +6,7 @@ param queueName string
 param onboardingGroupId string
 param completionGroupId string
 param appInsightsConnectionString string
+param packageUrl string
 param tags object
 
 var storageQueueContributorRoleId = subscriptionResourceId(
@@ -132,7 +133,7 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
         }
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
+          value: empty(packageUrl) ? '1' : packageUrl
         }
       ]
     }

@@ -73,6 +73,8 @@ $outputsJson = az deployment sub create `
         tenantId=$TenantId `
         onboardingGroupId=$OnboardingGroupId `
         completionGroupId=$CompletionGroupId `
+        webPackageUrl='' `
+        workerPackageUrl='' `
     --query properties.outputs `
     --output json
 

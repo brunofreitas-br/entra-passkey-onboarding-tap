@@ -2,7 +2,13 @@
 
 Reference application that helps an eligible Microsoft Entra ID user request a short-lived, single-use Temporary Access Pass (TAP), register a Passkey, and complete onboarding.
 
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fbrunofreitas-br%2Fentra-passkey-onboarding-tap%2Fmain%2Fazuredeploy.json)
+
 The default deployment target is **Azure App Service on Linux**. The deployment script creates the Azure resources, Microsoft Entra application, security groups when needed, managed identity permissions, and publishes the .NET application without Docker or client secrets.
+
+The **Deploy to Azure** button performs the complete installation using versioned application packages from the project's GitHub Release. No local tooling is required. The signed-in administrator still needs sufficient Azure and Microsoft Entra permissions.
+
+GitHub immutable releases are enforced for this repository. Release tags and assets can't be replaced after publication, and GitHub generates a release attestation for provenance.
 
 ## What the user experiences
 
@@ -48,6 +54,12 @@ No client secret, certificate, database, TAP value, or user-supplied object ID i
 The deployment identity is highly privileged. Use a dedicated administrative workstation and review `infra/main.bicep` before deployment.
 
 ## One-command deployment
+
+### Deploy to Azure
+
+Select the button at the top of this README, review the parameters, and deploy. The default package URLs are pinned to release `v1.0.0`.
+
+### PowerShell
 
 ```powershell
 pwsh ./scripts/deploy.ps1 `

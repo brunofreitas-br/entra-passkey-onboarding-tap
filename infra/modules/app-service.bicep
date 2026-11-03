@@ -13,6 +13,7 @@ param onboardingGroupId string
 param completionGroupId string
 param completionQueueUri string
 param appInsightsConnectionString string
+param packageUrl string
 param tags object
 
 var commonSiteConfig = {
@@ -92,7 +93,7 @@ var commonSiteConfig = {
     }
     {
       name: 'WEBSITE_RUN_FROM_PACKAGE'
-      value: '1'
+      value: empty(packageUrl) ? '1' : packageUrl
     }
   ]
 }

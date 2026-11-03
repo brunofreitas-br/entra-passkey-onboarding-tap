@@ -15,6 +15,8 @@ param appServiceSku string = 'B1'
 ])
 param operatingSystem string = 'Linux'
 param tenantId string
+param webPackageUrl string = 'https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.0.0/web.zip'
+param workerPackageUrl string = 'https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.0.0/worker.zip'
 
 @description('Use an existing Assigned security group, or leave empty to create one.')
 param onboardingGroupId string = ''
@@ -163,6 +165,7 @@ module transitionWorker 'modules/transition-worker.bicep' = {
     onboardingGroupId: resolvedOnboardingGroupId
     completionGroupId: resolvedCompletionGroupId
     appInsightsConnectionString: observability.outputs.connectionString
+    packageUrl: workerPackageUrl
     tags: tags
   }
 }
@@ -182,6 +185,7 @@ module appService 'modules/app-service.bicep' = {
     completionGroupId: resolvedCompletionGroupId
     completionQueueUri: transitionWorker.outputs.queueUri
     appInsightsConnectionString: observability.outputs.connectionString
+    packageUrl: webPackageUrl
     tags: tags
   }
 }
