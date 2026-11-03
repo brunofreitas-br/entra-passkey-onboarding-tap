@@ -1,0 +1,127 @@
+# Microsoft Entra Passkey Onboarding with Temporary Access Pass
+
+Reference application that helps an eligible Microsoft Entra ID user request a short-lived, single-use Temporary Access Pass (TAP), register a Passkey, and complete onboarding.
+
+The default deployment target is **Azure App Service on Linux**. The deployment script creates the Azure resources, Microsoft Entra application, security groups when needed, managed identity permissions, and publishes the .NET application without Docker or client secrets.
+
+## What the user experiences
+
+1. Sign in with a recent password-authenticated session.
+2. Request a single-use TAP that expires after 10 minutes.
+3. Open Security info in a new browser tab and register a Passkey.
+4. Return to the application and confirm registration.
+5. The application adds the user to the completion group before removing them from the onboarding group.
+
+## Architecture
+
+```text
+Microsoft Entra ID
+├── App registration (openid + profile)
+├── Onboarding security group
+├── Completion security group
+└── Microsoft Graph permissions for the Web App managed identity
+
+Azure
+├── App Service Plan
+├── Linux Web App (.NET 10)
+│   └── System-assigned managed identity
+├── Storage Queue
+├── Azure Function transition worker
+│   └── Separate system-assigned managed identity
+├── Application Insights
+└── Log Analytics workspace
+```
+
+No client secret, certificate, database, TAP value, or user-supplied object ID is stored by the application. The internet-facing Web App has `GroupMember.Read.All`, not group-write permission. Only the queue-triggered Function receives `GroupMember.ReadWrite.All`; it has no HTTP trigger and revalidates eligibility, PIM assignments, and Passkey registration before every transition.
+
+## Prerequisites
+
+- Azure subscription
+- Microsoft Entra tenant
+- Azure CLI
+- Bicep CLI
+- PowerShell 7
+- .NET 10 SDK
+- Azure `Owner` or equivalent permissions for resource deployment
+- Microsoft Entra permissions that allow creation of applications, groups, consent grants, and Microsoft Graph app-role assignments
+
+The deployment identity is highly privileged. Use a dedicated administrative workstation and review `infra/main.bicep` before deployment.
+
+## One-command deployment
+
+```powershell
+pwsh ./scripts/deploy.ps1 `
+  -TenantId "00000000-0000-0000-0000-000000000000" `
+  -SubscriptionId "00000000-0000-0000-0000-000000000000"
+```
+
+By default, the template:
+
+- deploys to `eastus2`;
+- uses an App Service `B1` Linux plan;
+- creates the onboarding and completion groups;
+- creates a single-tenant app registration;
+- grants tenant-wide consent only for `openid profile`;
+- grants the Web App managed identity the minimum reviewed Microsoft Graph application roles;
+- isolates `GroupMember.ReadWrite.All` in a queue-triggered Function with no HTTP trigger;
+- publishes the application using ZIP Deploy;
+- verifies `/health/ready`.
+
+To reuse existing Assigned security groups:
+
+```powershell
+pwsh ./scripts/deploy.ps1 `
+  -TenantId "<tenant-id>" `
+  -SubscriptionId "<subscription-id>" `
+  -OnboardingGroupId "<group-object-id>" `
+  -CompletionGroupId "<group-object-id>"
+```
+
+Use `-OperatingSystem Windows` when a subscription doesn't have Linux App Service quota. Linux remains the default public deployment.
+
+## Tenant configuration after deployment
+
+1. Enable Temporary Access Pass for the onboarding group.
+   - minimum lifetime: 10 minutes;
+   - one-time use allowed.
+2. Enable Passkey (FIDO2) self-service setup for the intended users.
+3. Configure the Conditional Access and Terms of Use policies for the onboarding and completion groups.
+4. Add only approved, nonprivileged users to the onboarding group.
+5. Test with a dedicated nonprivileged account before broader rollout.
+
+## Security model
+
+This reference implementation authorizes TAP issuance using:
+
+- a fresh password-authenticated Microsoft Entra session;
+- immutable `oid` and tenant claims;
+- membership in one fixed onboarding group;
+- exclusion of guests, service accounts, break-glass identities, active role holders, PIM-eligible identities, and users privileged through role-assignable groups;
+- antiforgery protection, one-use action nonces, rate limiting, and secret-free auditing.
+
+Password-only bootstrap remains a high-impact design decision. Review and formally accept that risk before production use.
+
+The default B1 deployment uses one App Service instance and in-memory nonce/rate-limit state. Before scaling to multiple instances, move that state to a distributed store and separate the reconciler from the web process.
+
+## Local validation
+
+```powershell
+pwsh ./scripts/test-local.ps1
+```
+
+Or:
+
+```bash
+dotnet test TapPasskeyOnboarding.slnx -c Release
+```
+
+## Public repository guidance
+
+- Never commit tenant IDs, group IDs, deployment outputs, customer branding, or exported TAP values.
+- Keep environment-specific parameters in `infra/parameters.local.json`, which is ignored by Git.
+- Use GitHub Security Advisories for vulnerability reports.
+- Review Graph permissions and Bicep changes before every release.
+
+## License
+
+Licensed under the [MIT License](LICENSE).

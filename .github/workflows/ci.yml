@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore TapPasskeyOnboarding.slnx
+
+      - name: Test
+        run: dotnet test TapPasskeyOnboarding.slnx -c Release --no-restore
+
+      - name: Compile Bicep
+        uses: azure/cli@v2
+        with:
+          inlineScript: az bicep build --file infra/main.bicep

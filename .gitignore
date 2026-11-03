@@ -1,0 +1,14 @@
+bin/
+obj/
+TestResults/
+.vs/
+.idea/
+.DS_Store
+.env
+appsettings.Development.json
+http-client.env.json.user
+*.http.local
+.copilot-azure/
+.artifacts/
+infra/parameters.local.json
+local.settings.json

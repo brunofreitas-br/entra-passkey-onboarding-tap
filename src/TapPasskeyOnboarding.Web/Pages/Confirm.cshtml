@@ -1,0 +1,24 @@
+@page "/confirm"
+@model TapPasskeyOnboarding.Web.Pages.ConfirmModel
+@{
+    ViewData["Title"] = "Confirmar chave de acesso";
+}
+<p class="eyebrow">Etapa 3 de 3</p>
+<h1>Confirme o cadastro</h1>
+<p class="lead">Depois de cadastrar a chave na outra aba, clique no botão abaixo.</p>
+@if (Model.Error is not null) { <section class="error"><strong>Não foi possível verificar agora</strong><p>Tente novamente em alguns instantes.</p></section> }
+@if (Model.Result is null) {
+  <section class="empty"><h2>Pronto para verificar?</h2><p>Confirme somente depois de concluir o cadastro nas Informações de segurança.</p></section>
+} else {
+  @if (Model.Result.PasskeyConfirmed) {
+    <section class="success-panel large"><span class="success-icon">✓</span><div><h2>Configuração concluída</h2><p>Sua chave de acesso foi confirmada. Você já pode fechar esta página.</p></div></section>
+  } else {
+    <section class="notice"><strong>A chave ainda não apareceu.</strong><p>Volte às Informações de segurança, conclua o cadastro e tente novamente.</p></section>
+  }
+}
+@if (Model.Result?.PasskeyConfirmed != true) {
+<form method="post" asp-page-handler="Verify" class="actions">
+  <input type="hidden" name="actionNonce" value="@Model.ActionNonce" />
+  <button type="submit">Concluir configuração</button>
+</form>
+}

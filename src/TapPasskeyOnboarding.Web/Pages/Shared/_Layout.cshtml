@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@ViewData["Title"] · Configuração da chave de acesso</title><link rel="stylesheet" href="~/css/site.css" asp-append-version="true"></head>
+<body><header><a href="/" class="brand"><span>PK</span> Configuração da chave de acesso</a><div>@User.Identity?.Name</div></header>
+<main class="shell">@RenderBody()</main>
+<script src="~/js/site.js" asp-append-version="true"></script>@await RenderSectionAsync("Scripts", required: false)</body></html>

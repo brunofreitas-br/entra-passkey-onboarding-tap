@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TapPasskeyOnboarding.Core/TapPasskeyOnboarding.Core.csproj" />
+    <Project Path="src/TapPasskeyOnboarding.TransitionWorker/TapPasskeyOnboarding.TransitionWorker.csproj" />
+    <Project Path="src/TapPasskeyOnboarding.Web/TapPasskeyOnboarding.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TapPasskeyOnboarding.IntegrationTests/TapPasskeyOnboarding.IntegrationTests.csproj" />
+    <Project Path="tests/TapPasskeyOnboarding.SmokeTests/TapPasskeyOnboarding.SmokeTests.csproj" />
+    <Project Path="tests/TapPasskeyOnboarding.UnitTests/TapPasskeyOnboarding.UnitTests.csproj" />
+  </Folder>
+</Solution>

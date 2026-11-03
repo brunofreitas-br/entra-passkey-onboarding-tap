@@ -1,0 +1,33 @@
+@page
+@model TapPasskeyOnboarding.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Configuração da chave de acesso";
+}
+<section class="hero">
+  <p class="eyebrow">Acesso seguro</p>
+  @if (Model.PasskeyCompleted)
+  {
+    <h1>Configuração concluída</h1>
+    <p>Sua chave de acesso foi confirmada. Você já pode fechar esta página.</p>
+    <div class="success-panel"><span class="success-icon">✓</span><strong>Chave de acesso cadastrada</strong></div>
+  }
+  else
+  {
+    <p class="step-counter">Etapa 1 de 3</p>
+    <h1>Cadastre sua chave de acesso</h1>
+    <p>Você usará um código temporário para configurar uma forma segura de entrar usando biometria.</p>
+  }
+</section>
+@if (!Model.PasskeyCompleted)
+{
+<section class="simple-steps" aria-label="Etapas da configuração">
+  <article><span>1</span><div><strong>Gerar o código</strong><p>O código será exibido uma única vez.</p></div></article>
+  <article><span>2</span><div><strong>Cadastrar a chave</strong><p>Uma nova aba abrirá com as Informações de segurança.</p></div></article>
+  <article><span>3</span><div><strong>Confirmar</strong><p>Volte ao portal para concluir.</p></div></article>
+</section>
+<aside class="notice"><strong>Antes de começar:</strong> reserve alguns minutos e mantenha esta página aberta até o final.</aside>
+<form method="post" asp-page-handler="IssueTap" class="actions">
+  <input type="hidden" name="actionNonce" value="@Model.ActionNonce" />
+  <button type="submit">Gerar código temporário</button>
+</form>
+}
