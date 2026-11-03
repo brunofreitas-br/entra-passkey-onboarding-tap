@@ -48,7 +48,7 @@ public sealed class RouteSmokeTests : IClassFixture<TestApplication>
     }
 
     [Fact]
-    public void Production_wiring_uses_real_graph_client_and_user_assigned_managed_identity()
+    public void Production_wiring_uses_real_graph_client_managed_identity_and_recent_session_sso()
     {
         using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -71,7 +71,7 @@ public sealed class RouteSmokeTests : IClassFixture<TestApplication>
         Assert.IsType<GraphHttpDirectoryClient>(application.Services.GetRequiredService<IGraphDirectoryClient>());
         var oidc = application.Services.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
             .Get(OpenIdConnectDefaults.AuthenticationScheme);
-        Assert.Equal(OpenIdConnectPrompt.Login, oidc.Prompt);
+        Assert.Null(oidc.Prompt);
         Assert.Equal(TimeSpan.FromMinutes(15), oidc.MaxAge);
         Assert.False(oidc.MapInboundClaims);
     }

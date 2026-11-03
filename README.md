@@ -18,6 +18,8 @@ GitHub immutable releases are enforced for this repository. Release tags and ass
 4. Return to the application and confirm registration.
 5. The application adds the user to the completion group before removing them from the onboarding group.
 
+The portal reuses a Microsoft Entra session established within the last 15 minutes, including the session used to accept Terms of Use. If the session is older, Microsoft Entra asks the user to authenticate again. TAP expiration is displayed in the browser's local time zone without IP geolocation or third-party location services.
+
 ## Architecture
 
 ```text
@@ -57,7 +59,7 @@ The deployment identity is highly privileged. Use a dedicated administrative wor
 
 ### Deploy to Azure
 
-Select the button at the top of this README, review the parameters, and deploy. The default package URLs are pinned to release `v1.0.0`.
+Select the button at the top of this README, review the parameters, and deploy. The default package URLs are pinned to release `v1.1.0`.
 
 ### PowerShell
 

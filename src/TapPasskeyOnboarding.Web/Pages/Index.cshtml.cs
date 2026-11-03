@@ -84,7 +84,8 @@ public sealed class OneTimeTapResult(TapIssuance tap, HtmlEncoder encoder) : IAc
         response.Headers.CacheControl = "no-store, private";
         response.Headers.Pragma = "no-cache";
         var secret = encoder.Encode(tap.Secret);
-        var expires = encoder.Encode(tap.ExpiresAt.ToString("u"));
+        var expiresIso = encoder.Encode(tap.ExpiresAt.ToUniversalTime().ToString("O"));
+        var expiresFallback = encoder.Encode(tap.ExpiresAt.ToUniversalTime().ToString("u"));
         await response.WriteAsync($"""
             <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
             <title>Código temporário · Configuração da chave de acesso</title><link rel="stylesheet" href="/css/site.css"></head>
@@ -93,7 +94,7 @@ public sealed class OneTimeTapResult(TapIssuance tap, HtmlEncoder encoder) : IAc
             <p class="lead">Mantenha esta página aberta. O código aparece somente agora e funciona uma única vez.</p>
             <section class="tap-panel"><p class="field-label">Seu código temporário</p><p id="tap-value" class="secret">{secret}</p>
             <button type="button" class="button secondary" data-copy-target="tap-value">Copiar código</button>
-            <p class="helper">Válido até {expires}.</p></section>
+            <p class="helper">Válido até <time data-local-time datetime="{expiresIso}">{expiresFallback}</time> <span data-time-zone-label>(UTC)</span>.</p></section>
             <ol class="instructions">
               <li><strong>Copie o código</strong> acima.</li>
               <li><strong>Abra as Informações de segurança</strong> em uma nova aba.</li>

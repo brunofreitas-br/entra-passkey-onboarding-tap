@@ -84,7 +84,8 @@ else
         options.ResponseType = OpenIdConnectResponseType.IdToken;
         options.ResponseMode = OpenIdConnectResponseMode.FormPost;
         options.UsePkce = false;
-        options.Prompt = OpenIdConnectPrompt.Login;
+        // Reuse a recent Microsoft Entra session (for example, from Terms of Use).
+        // MaxAge still forces reauthentication when that session is older than 15 minutes.
         options.MaxAge = passwordAuthenticationMaxAge;
         options.SaveTokens = false;
         options.GetClaimsFromUserInfoEndpoint = false;

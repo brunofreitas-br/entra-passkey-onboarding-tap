@@ -15,8 +15,8 @@ param appServiceSku string = 'B1'
 ])
 param operatingSystem string = 'Linux'
 param tenantId string
-param webPackageUrl string = 'https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.0.0/web.zip'
-param workerPackageUrl string = 'https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.0.0/worker.zip'
+param webPackageUrl string = 'https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.1.0/web.zip'
+param workerPackageUrl string = 'https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.1.0/worker.zip'
 
 @description('Use an existing Assigned security group, or leave empty to create one.')
 param onboardingGroupId string = ''

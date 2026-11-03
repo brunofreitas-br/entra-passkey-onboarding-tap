@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "12802868552041201591"
+      "templateHash": "15808202432644257284"
     }
   },
   "parameters": {
@@ -41,11 +41,11 @@
     },
     "webPackageUrl": {
       "type": "string",
-      "defaultValue": "https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.0.0/web.zip"
+      "defaultValue": "https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.1.0/web.zip"
     },
     "workerPackageUrl": {
       "type": "string",
-      "defaultValue": "https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.0.0/worker.zip"
+      "defaultValue": "https://github.com/brunofreitas-br/entra-passkey-onboarding-tap/releases/download/v1.1.0/worker.zip"
     },
     "onboardingGroupId": {
       "type": "string",
