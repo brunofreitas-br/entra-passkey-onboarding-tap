@@ -67,7 +67,7 @@ The validated deployment path uses Azure Cloud Shell in **PowerShell** mode. It 
 3. Download the installer pinned to an immutable commit:
 
 ```powershell
-$scriptUri = "https://raw.githubusercontent.com/brunofreitas-br/entra-passkey-onboarding-tap/84c8321b083183035192502fae54c5632276d2b7/scripts/deploy-cloud-shell.ps1"
+$scriptUri = "https://raw.githubusercontent.com/brunofreitas-br/entra-passkey-onboarding-tap/f5611a3f9c9f3e897d7540a6c560c52df8ee34fa/scripts/deploy-cloud-shell.ps1"
 Remove-Item ./deploy-cloud-shell.ps1 -ErrorAction SilentlyContinue
 Invoke-WebRequest $scriptUri -OutFile deploy-cloud-shell.ps1
 ```
