@@ -6,7 +6,8 @@ param(
     [Parameter(Mandatory)]
     [string] $SubscriptionId,
 
-    [string] $Location = 'eastus2',
+    [string] $Location = 'westus2',
+    [ValidateLength(3, 24)]
     [string] $NamePrefix = 'passkey-onboarding',
     [string] $EnvironmentName = 'dev',
     [ValidateSet('F1', 'B1', 'S1', 'P0v3')]

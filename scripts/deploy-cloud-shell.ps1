@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string] $SubscriptionId,
-    [string] $Location = 'eastus2',
+    [string] $Location = 'westus2',
+    [ValidateLength(3, 24)]
     [string] $NamePrefix = 'passkey-onboarding',
     [string] $EnvironmentName = 'prod',
     [ValidateSet('B1', 'S1', 'P0v3')]
@@ -103,10 +104,11 @@ if ($LASTEXITCODE -ne 0) {
     throw @'
 Preflight failed. No deployment was started.
 
-Confirm that the account has:
-  - Global Administrator active in Microsoft Entra ID
-  - Owner on the target Azure subscription
-  - the Microsoft Graph scopes requested by this script
+Review the validation error printed above. Common causes include:
+  - Global Administrator isn't active in Microsoft Entra ID
+  - Owner isn't assigned on the target Azure subscription
+  - App Service quota is unavailable in the selected region
+  - a parameter value is invalid
 '@
 }
 

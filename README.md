@@ -127,7 +127,7 @@ pwsh ./scripts/deploy.ps1 `
 
 By default, the template:
 
-- deploys to `eastus2`;
+- deploys to `westus2`;
 - uses an App Service `B1` Linux plan;
 - creates the onboarding and completion groups;
 - creates a single-tenant app registration;

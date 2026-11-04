@@ -7,7 +7,7 @@ extension microsoftGraphV1
 param namePrefix string = 'passkey-onboarding'
 
 param environmentName string = 'dev'
-param location string = 'eastus2'
+param location string = 'westus2'
 param appServiceSku string = 'B1'
 @allowed([
   'Linux'
