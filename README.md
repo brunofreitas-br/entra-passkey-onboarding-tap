@@ -2,11 +2,12 @@
 
 Reference application that helps an eligible Microsoft Entra ID user request a short-lived, single-use Temporary Access Pass (TAP), register a Passkey, and complete onboarding.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fbrunofreitas-br%2Fentra-passkey-onboarding-tap%2F60761f3efbae8249d817c1f7ea9d1bdb9abd5ba1%2Fazuredeploy.json)
+[Open Azure Cloud Shell](https://shell.azure.com)
 
 The default deployment target is **Azure App Service on Linux**. The deployment script creates the Azure resources, Microsoft Entra application, security groups when needed, managed identity permissions, and publishes the .NET application without Docker or client secrets.
 
-The **Deploy to Azure** button performs the complete installation using versioned application packages from the project's GitHub Release. No local tooling is required. The signed-in administrator still needs sufficient Azure and Microsoft Entra permissions.
+> [!IMPORTANT]
+> Full deployment must run from Azure Cloud Shell, Azure CLI, or Azure PowerShell. The Azure portal's generic **Deploy to Azure** form doesn't provide the delegated Microsoft Graph permissions required by a hybrid Azure + Microsoft Entra Bicep template.
 
 GitHub immutable releases are enforced for this repository. Release tags and assets can't be replaced after publication, and GitHub generates a release attestation for provenance.
 
@@ -55,13 +56,68 @@ No client secret, certificate, database, TAP value, or user-supplied object ID i
 
 The deployment identity is highly privileged. Use a dedicated administrative workstation and review `infra/main.bicep` before deployment.
 
-## One-command deployment
+## Guided deployment from Azure Cloud Shell
 
-### Deploy to Azure
+The validated deployment path uses Azure Cloud Shell in **PowerShell** mode. It performs a non-destructive preflight against Azure and Microsoft Graph before creating any resources.
 
-Select the button at the top of this README, review the parameters, and deploy. The default package URLs are pinned to release `v1.1.0`.
+1. Activate these roles:
+   - **Global Administrator** in Microsoft Entra ID;
+   - **Owner** on the target Azure subscription.
+2. Open [Azure Cloud Shell](https://shell.azure.com) and select **PowerShell**.
+3. Download the installer pinned to an immutable commit:
 
-### PowerShell
+```powershell
+$scriptUri = "https://raw.githubusercontent.com/brunofreitas-br/entra-passkey-onboarding-tap/60761f3efbae8249d817c1f7ea9d1bdb9abd5ba1/scripts/deploy-cloud-shell.ps1"
+Invoke-WebRequest $scriptUri -OutFile deploy-cloud-shell.ps1
+```
+
+4. Run preflight only:
+
+```powershell
+./deploy-cloud-shell.ps1 `
+  -SubscriptionId "<subscription-id>" `
+  -ValidateOnly
+```
+
+The preflight creates no resources. It verifies:
+
+- Microsoft Graph access through the Azure CLI session;
+- Azure subscription context;
+- App Service quota in the chosen region;
+- the complete ARM template validation.
+
+5. After preflight succeeds, deploy:
+
+```powershell
+./deploy-cloud-shell.ps1 `
+  -SubscriptionId "<subscription-id>"
+```
+
+Type `DEPLOY` only after reviewing the parameters.
+
+The application packages remain pinned to immutable release `v1.1.0`.
+
+#### Troubleshooting Microsoft Graph authorization
+
+If preflight reports:
+
+```text
+Authorization_RequestDenied: Insufficient privileges to complete the operation
+Target: /resources/microsoftGraph
+```
+
+don't start the deployment. This means the signed-in identity can deploy Azure resources but can't deploy one or more Microsoft Entra resources in the template.
+
+Confirm all of the following:
+
+- run the installation from **Azure Cloud Shell**, Azure CLI, or Azure PowerShell — not the Azure portal's generic custom deployment form;
+- activate **Global Administrator** in Microsoft Entra ID for the deployment;
+- use **Owner** on the target Azure subscription;
+- after activating a PIM role, sign out and back in to Cloud Shell before rerunning preflight.
+
+The script calls `az deployment sub validate` first, so this condition is detected before any resource is created.
+
+### Local PowerShell deployment
 
 ```powershell
 pwsh ./scripts/deploy.ps1 `
