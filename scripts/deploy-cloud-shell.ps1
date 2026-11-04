@@ -16,7 +16,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$templateUri = 'https://raw.githubusercontent.com/brunofreitas-br/entra-passkey-onboarding-tap/84c8321b083183035192502fae54c5632276d2b7/azuredeploy.json'
+$templateUri = 'https://raw.githubusercontent.com/brunofreitas-br/entra-passkey-onboarding-tap/dcd0a3a291e4d7c345fa25d102a8693ed1db485d/azuredeploy.json'
 
 function Read-RequiredValue {
     param([string] $Prompt, [string] $CurrentValue)
