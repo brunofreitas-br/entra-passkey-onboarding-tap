@@ -14,6 +14,7 @@ param(
     [string] $AppServiceSku = 'B1',
     [ValidateSet('Linux', 'Windows')]
     [string] $OperatingSystem = 'Linux',
+    [string] $ExistingAppServicePlanResourceId = '',
     [string] $OnboardingGroupId = '',
     [string] $CompletionGroupId = ''
 )
@@ -43,21 +44,37 @@ if ($accountTenant -ne $TenantId) {
 
 az bicep install | Out-Null
 
-$quotaResponse = az rest `
-    --method GET `
-    --url "https://management.azure.com/subscriptions/$SubscriptionId/providers/Microsoft.Web/locations/$Location/usages?api-version=2024-11-01" `
-    --output json | ConvertFrom-Json
-$selectedQuota = $quotaResponse.value |
-    Where-Object { $_.name.value -eq $AppServiceSku } |
-    Select-Object -First 1
-$sharedQuota = $quotaResponse.value |
-    Where-Object { $_.name.value -eq '*' } |
-    Select-Object -First 1
-if (-not $selectedQuota -and $sharedQuota) {
-    $selectedQuota = $sharedQuota
+if (-not [string]::IsNullOrWhiteSpace($ExistingAppServicePlanResourceId)) {
+    $existingPlan = az resource show `
+        --ids $ExistingAppServicePlanResourceId `
+        --api-version 2024-11-01 `
+        --output json |
+        ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $existingPlan.type -ne 'Microsoft.Web/serverfarms') {
+        throw "ExistingAppServicePlanResourceId isn't a valid App Service Plan."
+    }
+    $Location = $existingPlan.location
+    $AppServiceSku = $existingPlan.sku.name
+    $planIsLinux = $existingPlan.kind -match 'linux' -or $existingPlan.properties.reserved -eq $true
+    $OperatingSystem = $planIsLinux ? 'Linux' : 'Windows'
 }
-if (-not $selectedQuota -or $selectedQuota.limit -lt 1) {
-    throw "App Service quota for SKU '$AppServiceSku' is zero in '$Location'. Use a subscription with App Service quota or request a limit of at least 1 before deployment."
+else {
+    $quotaResponse = az rest `
+        --method GET `
+        --url "https://management.azure.com/subscriptions/$SubscriptionId/providers/Microsoft.Web/locations/$Location/usages?api-version=2024-11-01" `
+        --output json | ConvertFrom-Json
+    $selectedQuota = $quotaResponse.value |
+        Where-Object { $_.name.value -eq $AppServiceSku } |
+        Select-Object -First 1
+    $sharedQuota = $quotaResponse.value |
+        Where-Object { $_.name.value -eq '*' } |
+        Select-Object -First 1
+    if (-not $selectedQuota -and $sharedQuota) {
+        $selectedQuota = $sharedQuota
+    }
+    if (-not $selectedQuota -or $selectedQuota.limit -le $selectedQuota.currentValue) {
+        throw "No remaining App Service quota for SKU '$AppServiceSku' in '$Location'."
+    }
 }
 
 $deploymentName = "passkey-onboarding-$EnvironmentName-$(Get-Date -Format 'yyyyMMddHHmmss')"
@@ -71,6 +88,7 @@ $outputsJson = az deployment sub create `
         location=$Location `
         appServiceSku=$AppServiceSku `
         operatingSystem=$OperatingSystem `
+        existingAppServicePlanResourceId=$ExistingAppServicePlanResourceId `
         tenantId=$TenantId `
         onboardingGroupId=$OnboardingGroupId `
         completionGroupId=$CompletionGroupId `

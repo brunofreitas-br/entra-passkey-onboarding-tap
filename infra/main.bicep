@@ -9,6 +9,8 @@ param namePrefix string = 'passkey-onboarding'
 param environmentName string = 'dev'
 param location string = 'westus2'
 param appServiceSku string = 'B1'
+@description('Optional existing App Service Plan resource ID. When provided, no new web plan is created.')
+param existingAppServicePlanResourceId string = ''
 @allowed([
   'Linux'
   'Windows'
@@ -178,6 +180,7 @@ module appService 'modules/app-service.bicep' = {
     planName: planName
     webAppName: webAppName
     skuName: appServiceSku
+    existingAppServicePlanResourceId: existingAppServicePlanResourceId
     operatingSystem: operatingSystem
     tenantId: tenantId
     clientId: portalApplication.appId

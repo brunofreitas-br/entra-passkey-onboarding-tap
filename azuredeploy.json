@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "8828340028489039698"
+      "templateHash": "15278103567694162352"
     }
   },
   "parameters": {
@@ -27,6 +27,13 @@
     "appServiceSku": {
       "type": "string",
       "defaultValue": "B1"
+    },
+    "existingAppServicePlanResourceId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional existing App Service Plan resource ID. When provided, no new web plan is created."
+      }
     },
     "operatingSystem": {
       "type": "string",
@@ -792,6 +799,9 @@
           "skuName": {
             "value": "[parameters('appServiceSku')]"
           },
+          "existingAppServicePlanResourceId": {
+            "value": "[parameters('existingAppServicePlanResourceId')]"
+          },
           "operatingSystem": {
             "value": "[parameters('operatingSystem')]"
           },
@@ -823,7 +833,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "3157747417672274094"
+              "templateHash": "12874122152238591288"
             }
           },
           "parameters": {
@@ -838,6 +848,10 @@
             },
             "skuName": {
               "type": "string"
+            },
+            "existingAppServicePlanResourceId": {
+              "type": "string",
+              "defaultValue": ""
             },
             "operatingSystem": {
               "type": "string",
@@ -950,10 +964,12 @@
                 }
               ]
             },
-            "runtimeSiteConfig": "[if(equals(parameters('operatingSystem'), 'Linux'), createObject('linuxFxVersion', 'DOTNETCORE|10.0'), createObject('netFrameworkVersion', 'v10.0'))]"
+            "runtimeSiteConfig": "[if(equals(parameters('operatingSystem'), 'Linux'), createObject('linuxFxVersion', 'DOTNETCORE|10.0'), createObject('netFrameworkVersion', 'v10.0'))]",
+            "appServicePlanId": "[if(empty(parameters('existingAppServicePlanResourceId')), resourceId('Microsoft.Web/serverfarms', parameters('planName')), parameters('existingAppServicePlanResourceId'))]"
           },
           "resources": [
             {
+              "condition": "[empty(parameters('existingAppServicePlanResourceId'))]",
               "type": "Microsoft.Web/serverfarms",
               "apiVersion": "2024-11-01",
               "name": "[parameters('planName')]",
@@ -981,7 +997,7 @@
                 "type": "SystemAssigned"
               },
               "properties": {
-                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('planName'))]",
+                "serverFarmId": "[variables('appServicePlanId')]",
                 "httpsOnly": true,
                 "clientAffinityEnabled": false,
                 "publicNetworkAccess": "Enabled",

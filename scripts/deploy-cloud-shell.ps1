@@ -9,6 +9,7 @@ param(
     [string] $AppServiceSku = 'B1',
     [ValidateSet('Linux', 'Windows')]
     [string] $OperatingSystem = 'Linux',
+    [string] $ExistingAppServicePlanResourceId = '',
     [string] $OnboardingGroupId = '',
     [string] $CompletionGroupId = '',
     [switch] $ValidateOnly
@@ -44,6 +45,22 @@ if ($LASTEXITCODE -ne 0) {
 $account = az account show --output json | ConvertFrom-Json
 $tenantId = $account.tenantId
 
+if (-not [string]::IsNullOrWhiteSpace($ExistingAppServicePlanResourceId)) {
+    $existingPlan = az resource show `
+        --ids $ExistingAppServicePlanResourceId `
+        --api-version 2024-11-01 `
+        --output json |
+        ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $existingPlan.type -ne 'Microsoft.Web/serverfarms') {
+        throw "ExistingAppServicePlanResourceId isn't a valid App Service Plan."
+    }
+
+    $Location = $existingPlan.location
+    $AppServiceSku = $existingPlan.sku.name
+    $planIsLinux = $existingPlan.kind -match 'linux' -or $existingPlan.properties.reserved -eq $true
+    $OperatingSystem = $planIsLinux ? 'Linux' : 'Windows'
+}
+
 function ConvertFrom-JwtPayload {
     param([Parameter(Mandatory)][string] $Token)
 
@@ -60,6 +77,9 @@ function ConvertFrom-JwtPayload {
 Write-Host ''
 Write-Host "Deployment region: $Location" -ForegroundColor Cyan
 Write-Host "App Service SKU:  $AppServiceSku"
+if (-not [string]::IsNullOrWhiteSpace($ExistingAppServicePlanResourceId)) {
+    Write-Host 'App Service Plan: existing'
+}
 Write-Host ''
 Write-Host 'Microsoft Entra prerequisites' -ForegroundColor Cyan
 Write-Host 'Activate these roles before continuing:'
@@ -109,21 +129,23 @@ if ($LASTEXITCODE -ne 0) {
     throw 'The Azure CLI session cannot read the Microsoft Graph service principal. Activate the required Microsoft Entra role and sign in again.'
 }
 
-$quotaResponse = az rest `
-    --method GET `
-    --url "https://management.azure.com/subscriptions/$SubscriptionId/providers/Microsoft.Web/locations/$Location/usages?api-version=2024-11-01" `
-    --output json | ConvertFrom-Json
-$selectedQuota = $quotaResponse.value |
-    Where-Object { $_.name.value -eq $AppServiceSku } |
-    Select-Object -First 1
-$sharedQuota = $quotaResponse.value |
-    Where-Object { $_.name.value -eq '*' } |
-    Select-Object -First 1
-if (-not $selectedQuota -and $sharedQuota) {
-    $selectedQuota = $sharedQuota
-}
-if (-not $selectedQuota -or $selectedQuota.limit -lt 1) {
-    throw "App Service quota for SKU '$AppServiceSku' is zero in '$Location'. Choose another region/SKU or request quota before deployment."
+if ([string]::IsNullOrWhiteSpace($ExistingAppServicePlanResourceId)) {
+    $quotaResponse = az rest `
+        --method GET `
+        --url "https://management.azure.com/subscriptions/$SubscriptionId/providers/Microsoft.Web/locations/$Location/usages?api-version=2024-11-01" `
+        --output json | ConvertFrom-Json
+    $selectedQuota = $quotaResponse.value |
+        Where-Object { $_.name.value -eq $AppServiceSku } |
+        Select-Object -First 1
+    $sharedQuota = $quotaResponse.value |
+        Where-Object { $_.name.value -eq '*' } |
+        Select-Object -First 1
+    if (-not $selectedQuota -and $sharedQuota) {
+        $selectedQuota = $sharedQuota
+    }
+    if (-not $selectedQuota -or $selectedQuota.limit -le $selectedQuota.currentValue) {
+        throw "No remaining App Service quota for SKU '$AppServiceSku' in '$Location'. Current usage: $($selectedQuota.currentValue); limit: $($selectedQuota.limit). Use an existing plan, choose another region/SKU, or request quota."
+    }
 }
 
 $deploymentParameters = @(
@@ -131,6 +153,7 @@ $deploymentParameters = @(
     "environmentName=$EnvironmentName",
     "location=$Location",
     "appServiceSku=$AppServiceSku",
+    "existingAppServicePlanResourceId=$ExistingAppServicePlanResourceId",
     "operatingSystem=$OperatingSystem",
     "tenantId=$tenantId",
     "onboardingGroupId=$OnboardingGroupId",

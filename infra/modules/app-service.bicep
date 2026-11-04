@@ -2,6 +2,7 @@ param location string
 param planName string
 param webAppName string
 param skuName string
+param existingAppServicePlanResourceId string = ''
 @allowed([
   'Linux'
   'Windows'
@@ -105,7 +106,7 @@ var runtimeSiteConfig = operatingSystem == 'Linux'
       netFrameworkVersion: 'v10.0'
     }
 
-resource plan 'Microsoft.Web/serverfarms@2024-11-01' = {
+resource plan 'Microsoft.Web/serverfarms@2024-11-01' = if (empty(existingAppServicePlanResourceId)) {
   name: planName
   location: location
   kind: operatingSystem == 'Linux' ? 'linux' : 'app'
@@ -121,6 +122,10 @@ resource plan 'Microsoft.Web/serverfarms@2024-11-01' = {
   }
 }
 
+var appServicePlanId = empty(existingAppServicePlanResourceId)
+  ? plan!.id
+  : existingAppServicePlanResourceId
+
 resource web 'Microsoft.Web/sites@2024-11-01' = {
   name: webAppName
   location: location
@@ -130,7 +135,7 @@ resource web 'Microsoft.Web/sites@2024-11-01' = {
     type: 'SystemAssigned'
   }
   properties: {
-    serverFarmId: plan.id
+    serverFarmId: appServicePlanId
     httpsOnly: true
     clientAffinityEnabled: false
     publicNetworkAccess: 'Enabled'

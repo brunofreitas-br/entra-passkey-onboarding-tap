@@ -127,6 +127,39 @@ After preflight succeeds:
 > [!WARNING]
 > F1 is intended only for trials, demonstrations, and learning. It has no SLA, uses shared compute, doesn't support Always On, and is limited to 60 CPU minutes per day. Use B1 or higher for customer production workloads.
 
+#### Reuse an existing App Service Plan
+
+Creating a Web App manually also creates or consumes an App Service Plan. If the subscription has no remaining quota for a second plan, reuse the existing plan instead of creating another one.
+
+Retrieve its resource ID:
+
+```powershell
+$planId = az appservice plan show `
+  --resource-group "<existing-plan-resource-group>" `
+  --name "<existing-plan-name>" `
+  --query id `
+  --output tsv
+```
+
+Run preflight:
+
+```powershell
+./deploy-cloud-shell.ps1 `
+  -SubscriptionId "<subscription-id>" `
+  -ExistingAppServicePlanResourceId $planId `
+  -ValidateOnly
+```
+
+Deploy:
+
+```powershell
+./deploy-cloud-shell.ps1 `
+  -SubscriptionId "<subscription-id>" `
+  -ExistingAppServicePlanResourceId $planId
+```
+
+When an existing plan is supplied, the installer automatically uses its region, SKU, and operating system and skips the new-plan quota check. The Function App still uses its separate Consumption plan.
+
 #### Troubleshooting Microsoft Graph authorization
 
 If preflight reports:
