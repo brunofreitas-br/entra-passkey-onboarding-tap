@@ -5,7 +5,7 @@ param(
     [ValidateLength(3, 24)]
     [string] $NamePrefix = 'passkey-onboarding',
     [string] $EnvironmentName = 'prod',
-    [ValidateSet('B1', 'S1', 'P0v3')]
+    [ValidateSet('F1', 'B1', 'S1', 'P0v3')]
     [string] $AppServiceSku = 'B1',
     [ValidateSet('Linux', 'Windows')]
     [string] $OperatingSystem = 'Linux',

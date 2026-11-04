@@ -78,6 +78,7 @@ Invoke-WebRequest $scriptUri -OutFile deploy-cloud-shell.ps1
 ./deploy-cloud-shell.ps1 `
   -SubscriptionId "<subscription-id>" `
   -Location "westus2" `
+  -AppServiceSku "B1" `
   -ValidateOnly
 ```
 
@@ -94,12 +95,37 @@ The preflight creates no resources. It verifies:
 ```powershell
 ./deploy-cloud-shell.ps1 `
   -SubscriptionId "<subscription-id>" `
-  -Location "westus2"
+  -Location "westus2" `
+  -AppServiceSku "B1"
 ```
 
 Type `DEPLOY` only after reviewing the parameters.
 
 The application packages remain pinned to immutable release `v1.1.0`.
+
+#### Free tier for a lab or proof of concept
+
+The installer also accepts the App Service Free tier:
+
+```powershell
+./deploy-cloud-shell.ps1 `
+  -SubscriptionId "<subscription-id>" `
+  -Location "westus2" `
+  -AppServiceSku "F1" `
+  -ValidateOnly
+```
+
+After preflight succeeds:
+
+```powershell
+./deploy-cloud-shell.ps1 `
+  -SubscriptionId "<subscription-id>" `
+  -Location "westus2" `
+  -AppServiceSku "F1"
+```
+
+> [!WARNING]
+> F1 is intended only for trials, demonstrations, and learning. It has no SLA, uses shared compute, doesn't support Always On, and is limited to 60 CPU minutes per day. Use B1 or higher for customer production workloads.
 
 #### Troubleshooting Microsoft Graph authorization
 
