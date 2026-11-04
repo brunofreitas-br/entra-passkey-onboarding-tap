@@ -68,6 +68,7 @@ The validated deployment path uses Azure Cloud Shell in **PowerShell** mode. It 
 
 ```powershell
 $scriptUri = "https://raw.githubusercontent.com/brunofreitas-br/entra-passkey-onboarding-tap/84c8321b083183035192502fae54c5632276d2b7/scripts/deploy-cloud-shell.ps1"
+Remove-Item ./deploy-cloud-shell.ps1 -ErrorAction SilentlyContinue
 Invoke-WebRequest $scriptUri -OutFile deploy-cloud-shell.ps1
 ```
 
@@ -76,6 +77,7 @@ Invoke-WebRequest $scriptUri -OutFile deploy-cloud-shell.ps1
 ```powershell
 ./deploy-cloud-shell.ps1 `
   -SubscriptionId "<subscription-id>" `
+  -Location "westus2" `
   -ValidateOnly
 ```
 
@@ -90,7 +92,8 @@ The preflight creates no resources. It verifies:
 
 ```powershell
 ./deploy-cloud-shell.ps1 `
-  -SubscriptionId "<subscription-id>"
+  -SubscriptionId "<subscription-id>" `
+  -Location "westus2"
 ```
 
 Type `DEPLOY` only after reviewing the parameters.

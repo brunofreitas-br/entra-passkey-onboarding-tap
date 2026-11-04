@@ -15,7 +15,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$templateUri = 'https://raw.githubusercontent.com/brunofreitas-br/entra-passkey-onboarding-tap/60761f3efbae8249d817c1f7ea9d1bdb9abd5ba1/azuredeploy.json'
+$templateUri = 'https://raw.githubusercontent.com/brunofreitas-br/entra-passkey-onboarding-tap/84c8321b083183035192502fae54c5632276d2b7/azuredeploy.json'
 
 function Read-RequiredValue {
     param([string] $Prompt, [string] $CurrentValue)
@@ -44,6 +44,9 @@ if ($LASTEXITCODE -ne 0) {
 $account = az account show --output json | ConvertFrom-Json
 $tenantId = $account.tenantId
 
+Write-Host ''
+Write-Host "Deployment region: $Location" -ForegroundColor Cyan
+Write-Host "App Service SKU:  $AppServiceSku"
 Write-Host ''
 Write-Host 'Microsoft Entra prerequisites' -ForegroundColor Cyan
 Write-Host 'Activate these roles before continuing:'
