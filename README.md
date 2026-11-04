@@ -163,6 +163,81 @@ pwsh ./scripts/deploy.ps1 `
 
 Use `-OperatingSystem Windows` when a subscription doesn't have Linux App Service quota. Linux remains the default public deployment.
 
+## Configure the onboarding and completion groups
+
+The solution uses two **Assigned security groups**:
+
+| Group | Purpose | Membership management |
+|---|---|---|
+| Onboarding | Users who are allowed to request a TAP and still need to register a Passkey | Administrators add users; the application removes users after successful completion |
+| Completion | Users whose Passkey registration was confirmed | The application adds users automatically; don't manage routine membership manually |
+
+### Let the deployment create the groups
+
+When `OnboardingGroupId` and `CompletionGroupId` are left empty, the deployment creates both groups automatically.
+
+With the default parameters, the names follow this pattern:
+
+```text
+passkey-onboarding-prod-onboarding
+passkey-onboarding-prod-completed
+```
+
+The exact names depend on `NamePrefix` and `EnvironmentName`. At the end of deployment, the script prints both group object IDs.
+
+Find the groups in:
+
+```text
+Microsoft Entra admin center
+→ Identity
+→ Groups
+→ All groups
+```
+
+### Use existing groups
+
+To follow an existing naming or governance standard, create two Assigned security groups before deployment and pass their object IDs:
+
+```powershell
+./deploy-cloud-shell.ps1 `
+  -SubscriptionId "<subscription-id>" `
+  -Location "westus2" `
+  -OnboardingGroupId "<onboarding-group-object-id>" `
+  -CompletionGroupId "<completion-group-object-id>"
+```
+
+The object IDs are configured in the Web App and transition Function as:
+
+```text
+Graph__OnboardingGroupId
+Graph__CompletionGroupId
+```
+
+### Configure policies with the groups
+
+Use the **onboarding group** for:
+
+- the Temporary Access Pass authentication-method policy;
+- the Terms of Use policy;
+- the onboarding Conditional Access policy;
+- the controlled MFA exclusions required for the onboarding portal and My Sign-ins.
+
+Use the **completion group** for:
+
+- the final Conditional Access policy;
+- phishing-resistant authentication enforcement;
+- removal from temporary onboarding exceptions.
+
+The transition is intentionally ordered:
+
+1. Microsoft Graph confirms that the user registered a Passkey.
+2. The worker adds the user to the completion group.
+3. The worker confirms completion-group membership.
+4. Only then does it remove the user from the onboarding group.
+
+> [!IMPORTANT]
+> Add users only to the onboarding group. Don't manually add users to the completion group during normal operation. If group IDs must change after deployment, update both the Web App and Function configuration together or redeploy with the correct IDs.
+
 ## Tenant configuration after deployment
 
 1. Enable Temporary Access Pass for the onboarding group.
