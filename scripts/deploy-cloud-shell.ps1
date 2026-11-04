@@ -44,6 +44,19 @@ if ($LASTEXITCODE -ne 0) {
 $account = az account show --output json | ConvertFrom-Json
 $tenantId = $account.tenantId
 
+function ConvertFrom-JwtPayload {
+    param([Parameter(Mandatory)][string] $Token)
+
+    $payload = $Token.Split('.')[1].Replace('-', '+').Replace('_', '/')
+    switch ($payload.Length % 4) {
+        2 { $payload += '==' }
+        3 { $payload += '=' }
+    }
+
+    $json = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload))
+    return $json | ConvertFrom-Json
+}
+
 Write-Host ''
 Write-Host "Deployment region: $Location" -ForegroundColor Cyan
 Write-Host "App Service SKU:  $AppServiceSku"
@@ -55,6 +68,38 @@ Write-Host '  - Azure Owner on the target subscription'
 Write-Host ''
 Write-Host 'The Global Administrator role can be activated temporarily through PIM and deactivated after deployment.'
 Write-Host ''
+
+$graphToken = az account get-access-token `
+    --resource-type ms-graph `
+    --query accessToken `
+    --output tsv
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($graphToken)) {
+    throw "Azure CLI couldn't acquire a Microsoft Graph token."
+}
+
+$tokenClaims = ConvertFrom-JwtPayload -Token $graphToken
+$grantedScopes = @($tokenClaims.scp -split ' ' | Where-Object { $_ })
+$requiredScopes = @(
+    'Application.ReadWrite.All',
+    'AppRoleAssignment.ReadWrite.All',
+    'DelegatedPermissionGrant.ReadWrite.All',
+    'Group.ReadWrite.All'
+)
+$missingScopes = @($requiredScopes | Where-Object { $_ -notin $grantedScopes })
+if ($missingScopes.Count -gt 0) {
+    throw @"
+The Azure CLI Microsoft Graph token is missing required delegated scopes:
+  $($missingScopes -join "`n  ")
+
+Refresh the Cloud Shell Azure CLI session with Microsoft Graph consent:
+
+  az logout
+  az login --tenant $tenantId --scope https://graph.microsoft.com/.default
+  az account set --subscription $SubscriptionId
+
+Then run this preflight again.
+"@
+}
 
 az rest `
     --method GET `
@@ -110,6 +155,7 @@ Preflight failed. No deployment was started.
 Review the validation error printed above. Common causes include:
   - Global Administrator isn't active in Microsoft Entra ID
   - Owner isn't assigned on the target Azure subscription
+  - the Cloud Shell Azure CLI session wasn't refreshed after role activation or consent
   - App Service quota is unavailable in the selected region
   - a parameter value is invalid
 '@

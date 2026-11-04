@@ -83,6 +83,7 @@ Invoke-WebRequest $scriptUri -OutFile deploy-cloud-shell.ps1
 
 The preflight creates no resources. It verifies:
 
+- the exact delegated Microsoft Graph scopes in the Azure CLI token;
 - Microsoft Graph access through the Azure CLI session;
 - Azure subscription context;
 - App Service quota in the chosen region;
@@ -117,6 +118,16 @@ Confirm all of the following:
 - activate **Global Administrator** in Microsoft Entra ID for the deployment;
 - use **Owner** on the target Azure subscription;
 - after activating a PIM role, sign out and back in to Cloud Shell before rerunning preflight.
+
+If the script reports missing Microsoft Graph scopes, run the commands that it prints:
+
+```powershell
+az logout
+az login --tenant "<tenant-id>" --scope https://graph.microsoft.com/.default
+az account set --subscription "<subscription-id>"
+```
+
+Then rerun `-ValidateOnly`.
 
 The script calls `az deployment sub validate` first, so this condition is detected before any resource is created.
 
